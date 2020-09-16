@@ -7,7 +7,7 @@ import sys
 
 import torch.distributed as dist
 import torch.distributed.rpc as rpc
-from torch.distributed.rpc import _rref_context_get_debug_info
+from torch._C import _rref_context_get_debug_info
 
 
 if not dist.is_available():
