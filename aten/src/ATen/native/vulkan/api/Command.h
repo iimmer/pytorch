@@ -24,7 +24,10 @@ struct Command final {
 
     void bind(VkPipeline pipeline);
     void bind(VkPipelineLayout pipeline_layout, VkDescriptorSet descriptor_set);
+    void copy(VkBuffer source, VkBuffer destination, size_t size);
     void dispatch();
+
+    void submit(VkQueue queue, VkFence fence);
 
    private:
     VkCommandBuffer command_buffer_;
