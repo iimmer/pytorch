@@ -522,6 +522,8 @@ Tensor mean(
   return new_with_vtensor_vulkan(std::move(output), self.options());
 }
 
+#ifndef USE_VULKAN_API
+
 TORCH_LIBRARY_IMPL(aten, Vulkan, m) {
   m.impl("slice.Tensor", TORCH_FN(slice));
   m.impl("reshape", TORCH_FN(reshape));
@@ -556,6 +558,8 @@ TORCH_LIBRARY_IMPL(aten, Vulkan, m) {
   m.impl_UNBOXED("relu_", at::native::vulkan::aten::relu_);
   m.impl_UNBOXED("add_.Tensor", at::native::vulkan::aten::add_);
 }
+
+#endif /* USE_VULKAN_API */
 
 Tensor& copy_from_vulkan_(Tensor& self, const Tensor& src) {
   TORCH_INTERNAL_ASSERT(
