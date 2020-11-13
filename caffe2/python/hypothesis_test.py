@@ -1,6 +1,6 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+
+
+
 
 import numpy as np
 import copy
@@ -993,6 +993,38 @@ class TestOperators(hu.HypothesisTestCase):
             op=op,
             inputs=[np.array(lengths, dtype=np.int32)],
             reference=op_ref)
+
+    @given(
+        lengths=st.lists(
+            st.integers(min_value=0, max_value=10), min_size=0, max_size=10
+        ),
+        include_last_offset=st.booleans(),
+        **hu.gcs_cpu_only
+    )
+    @settings(deadline=None)
+    def test_lengths_to_offsets(self, lengths, include_last_offset, gc, dc):
+        op = core.CreateOperator(
+            "LengthsToOffsets",
+            ["lengths"],
+            ["ranges"],
+            include_last_offset=include_last_offset,
+        )
+
+        def op_ref(x):
+            if not x.size:
+                arr = [x.reshape(0)]
+            else:
+                arr = [np.concatenate(([0], np.cumsum(x)[:-1]))]
+            if include_last_offset:
+                arr[0] = np.concatenate((arr[0], np.array([np.sum(x)])))
+            return tuple(arr)
+
+        self.assertReferenceChecks(
+            device_option=gc,
+            op=op,
+            inputs=[np.array(lengths, dtype=np.int32)],
+            reference=op_ref,
+        )
 
     @given(prediction=hu.arrays(dims=[10, 3],
                                 elements=hu.floats(allow_nan=False,
@@ -2683,7 +2715,7 @@ class TestOperators(hu.HypothesisTestCase):
             Y[X >= upper_bound] = num_buckets + 1
             Y[(X >= lower_bound) & (X < upper_bound)] = \
                 ((X[(X >= lower_bound) & (X < upper_bound)] - lower_bound) /
-                        segment + 1).astype(np.int32)
+                    segment + 1).astype(np.int32)
 
             for i in range(Y.shape[0]):
                 for j in range(Y.shape[1]):
@@ -2694,8 +2726,6 @@ class TestOperators(hu.HypothesisTestCase):
 
         self.assertDeviceChecks(dc, op, [X], [0, 1])
         self.assertReferenceChecks(gc, op, [X], histogram)
-
-
 
     @settings(max_examples=1, deadline=None)
     @given(
@@ -2726,7 +2756,7 @@ class TestOperators(hu.HypothesisTestCase):
             net_instance.cancel()
 
         init_net = core.Net("init_net")
-        init_net.Proto().type = "deferrable_async_scheduling"
+        init_net.Proto().type = "async_scheduling"
 
         queue = init_net.CreateBlobsQueue(
             [],
@@ -2739,7 +2769,7 @@ class TestOperators(hu.HypothesisTestCase):
         ws.create_net(init_net).run()
 
         net = core.Net("net")
-        net.Proto().type = "deferrable_async_scheduling"
+        net.Proto().type = "async_scheduling"
 
         blobs = net.SafeDequeueBlobs([queue], num_blobs_to_dequeue)
 

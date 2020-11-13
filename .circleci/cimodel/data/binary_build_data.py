@@ -36,6 +36,7 @@ LINUX_PACKAGE_VARIANTS = OrderedDict(
         "3.6m",
         "3.7m",
         "3.8m",
+        "3.9m"
     ],
     conda=dimensions.STANDARD_PYTHON_VERSIONS,
     libtorch=[
@@ -43,21 +44,28 @@ LINUX_PACKAGE_VARIANTS = OrderedDict(
     ],
 )
 
+# TODO: There's an issue with current Python 3.9 builds that only occurs during
+#       windows builds, let's just not build 3.9 for windows and figure out how
+#       to resolve afterwards
+PYTHON_VERSIONS_NO_39 = [
+    v for v in dimensions.STANDARD_PYTHON_VERSIONS if v not in ['3.9']
+]
+
 CONFIG_TREE_DATA = OrderedDict(
     linux=(dimensions.GPU_VERSIONS, LINUX_PACKAGE_VARIANTS),
     macos=([None], OrderedDict(
-        wheel=dimensions.STANDARD_PYTHON_VERSIONS,
-        conda=dimensions.STANDARD_PYTHON_VERSIONS,
+        wheel=PYTHON_VERSIONS_NO_39,
+        conda=PYTHON_VERSIONS_NO_39,
         libtorch=[
             "3.7",
         ],
     )),
     # Skip CUDA-9.2 builds on Windows
     windows=(
-        [v for v in dimensions.GPU_VERSIONS if v not in ['cuda92', "rocm3.7"]],
+        [v for v in dimensions.GPU_VERSIONS if v not in ['cuda92'] + dimensions.ROCM_VERSION_LABELS],
         OrderedDict(
-            wheel=dimensions.STANDARD_PYTHON_VERSIONS,
-            conda=dimensions.STANDARD_PYTHON_VERSIONS,
+            wheel=PYTHON_VERSIONS_NO_39,
+            conda=PYTHON_VERSIONS_NO_39,
             libtorch=[
                 "3.7",
             ],
@@ -142,11 +150,11 @@ class LinuxGccConfigNode(ConfigNode):
 
         # XXX disabling conda rocm build since docker images are not there
         if self.find_prop("package_format") == 'conda':
-            gpu_versions = filter(lambda x: x != "rocm3.7", gpu_versions)
+            gpu_versions = filter(lambda x: x not in dimensions.ROCM_VERSION_LABELS, gpu_versions)
 
         # XXX libtorch rocm build  is temporarily disabled
         if self.find_prop("package_format") == 'libtorch':
-            gpu_versions = filter(lambda x: x != "rocm3.7", gpu_versions)
+            gpu_versions = filter(lambda x: x not in dimensions.ROCM_VERSION_LABELS, gpu_versions)
 
         return [ArchConfigNode(self, v) for v in gpu_versions]
 

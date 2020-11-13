@@ -133,11 +133,8 @@ _(aten, _sum_cuda) \
 _(aten, _tan) \
 _(aten, _tanh) \
 _(aten, _tanh_forward) \
-_(aten, _th_baddbmm) \
-_(aten, _th_bmm) \
 _(aten, _th_get_device) \
 _(aten, _th_kthvalue) \
-_(aten, _th_median) \
 _(aten, _th_mode) \
 _(aten, _th_prod) \
 _(aten, _th_sigmoid) \
@@ -240,6 +237,7 @@ _(aten, combinations) \
 _(aten, _conj) \
 _(aten, conj) \
 _(aten, complex) \
+_(aten, copysign) \
 _(aten, polar) \
 _(aten, constant_pad_nd) \
 _(aten, contiguous) \
@@ -372,6 +370,8 @@ _(aten, hstack) \
 _(aten, hypot) \
 _(aten, i0) \
 _(aten, i0_) \
+_(aten, igamma) \
+_(aten, igamma_) \
 _(aten, ifft) \
 _(aten, index) \
 _(aten, index_add) \
@@ -399,6 +399,7 @@ _(aten, isreal) \
 _(aten, istft) \
 _(aten, isposinf) \
 _(aten, isneginf) \
+_(aten, kaiser_window) \
 _(aten, kl_div) \
 _(aten, kl_div_backward) \
 _(aten, kthvalue) \
@@ -462,6 +463,7 @@ _(aten, max_unpool3d_forward) \
 _(aten, max_values) \
 _(aten, mean) \
 _(aten, median) \
+_(aten, nanmedian) \
 _(aten, meshgrid) \
 _(aten, min) \
 _(aten, min_values) \
@@ -491,8 +493,6 @@ _(aten, mode) \
 _(aten, mse_loss) \
 _(aten, mse_loss_backward) \
 _(aten, mse_loss_forward) \
-_(aten, mul) \
-_(aten, mul_) \
 _(aten, multi_margin_loss) \
 _(aten, multi_margin_loss_backward) \
 _(aten, multi_margin_loss_forward) \
@@ -503,6 +503,7 @@ _(aten, multinomial) \
 _(aten, mv) \
 _(aten, mvlgamma) \
 _(aten, nansum) \
+_(aten, nan_to_num) \
 _(aten, narrow) \
 _(aten, narrow_copy) \
 _(aten, native_batch_norm) \
@@ -554,6 +555,7 @@ _(aten, prod) \
 _(aten, put) \
 _(aten, qr) \
 _(aten, quantile) \
+_(aten, nanquantile) \
 _(aten, rad2deg) \
 _(aten, rand) \
 _(aten, rand_like) \
@@ -564,6 +566,7 @@ _(aten, randn_like) \
 _(aten, random) \
 _(aten, randperm) \
 _(aten, range) \
+_(aten, ravel) \
 _(aten, reciprocal) \
 _(aten, reflection_pad1d) \
 _(aten, reflection_pad1d_backward) \
@@ -611,6 +614,7 @@ _(aten, sigmoid) \
 _(aten, sign) \
 _(aten, signbit) \
 _(aten, silu) \
+_(aten, sgn) \
 _(aten, sin) \
 _(aten, sinh) \
 _(aten, size) \
@@ -662,7 +666,7 @@ _(aten, tan) \
 _(aten, tanh) \
 _(aten, tensor) \
 _(aten, tensordot) \
-_(aten, th_addmm) \
+_(aten, tensor_split) \
 _(aten, th_clone) \
 _(aten, th_norm) \
 _(aten, th_pow) \
@@ -732,7 +736,6 @@ _(aten, vander) \
 _(aten, var) \
 _(aten, view) \
 _(aten, view_as) \
-_(aten, vstack) \
 _(aten, where) \
 _(aten, zero) \
 _(aten, zeros) \
@@ -777,6 +780,7 @@ _(attr, ceil_mode) \
 _(attr, checked_signal_sizes) \
 _(attr, chunks) \
 _(attr, columns) \
+_(attr, column_stack) \
 _(attr, complex_input) \
 _(attr, complex_output) \
 _(attr, condition) \
@@ -899,6 +903,7 @@ _(attr, maxnorm) \
 _(attr, maximum) \
 _(attr, mean) \
 _(attr, median) \
+_(attr, nanmedian) \
 _(attr, min) \
 _(attr, min_indices) \
 _(attr, min_val) \

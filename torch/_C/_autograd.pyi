@@ -4,16 +4,21 @@ from enum import Enum
 # Defined in tools/autograd/init.cpp
 
 class ProfilerState(Enum):
-    Disable = 0
-    CPU = 1
-    CUDA = 2
-    NVTX = 3
+    Disable = ...
+    CPU = ...
+    CUDA = ...
+    NVTX = ...
 
 
 class ProfilerConfig:
-    def __init__(self, state: ProfilerState, report_input_shapes: bool, profile_memory: bool) -> None: ...
+    def __init__(
+        self,
+        state: ProfilerState,
+        report_input_shapes: bool,
+        profile_memory: bool,
+        with_stack: bool
+    ) -> None: ...
     ...
-
 
 class ProfilerEvent:
     def cpu_elapsed_us(self, other: ProfilerEvent) -> float: ...

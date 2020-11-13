@@ -85,6 +85,7 @@ Indexing, Slicing, Joining, Mutating Ops
 
     cat
     chunk
+    column_stack
     dstack
     gather
     hstack
@@ -94,11 +95,13 @@ Indexing, Slicing, Joining, Mutating Ops
     narrow
     nonzero
     reshape
+    row_stack
     split
     squeeze
     stack
     t
     take
+    tensor_split
     transpose
     unbind
     unsqueeze
@@ -276,10 +279,12 @@ Pointwise Ops
     clamp
     clip
     conj
+    copysign
     cos
     cosh
     deg2rad
     div
+    divide
     digamma
     erf
     erfc
@@ -308,8 +313,11 @@ Pointwise Ops
     logit
     hypot
     i0
+    igamma
     mul
+    multiply
     mvlgamma
+    nan_to_num
     neg
     negative
     nextafter
@@ -351,11 +359,13 @@ Reduction Ops
     logsumexp
     mean
     median
+    nanmedian
     mode
     norm
     nansum
     prod
     quantile
+    nanquantile
     std
     std_mean
     sum
@@ -415,6 +425,7 @@ Spectral Ops
     blackman_window
     hamming_window
     hann_window
+    kaiser_window
 
 
 Other Operations
@@ -449,12 +460,14 @@ Other Operations
     flip
     fliplr
     flipud
+    kron
     rot90
     gcd
     histc
     meshgrid
     lcm
     logcumsumexp
+    ravel
     renorm
     repeat_interleave
     roll
@@ -531,3 +544,5 @@ Utilities
     promote_types
     set_deterministic
     is_deterministic
+    vmap
+    Assert

@@ -3,7 +3,10 @@ import torch.overrides
 import linecache
 from typing import Type, Dict, List, Any, Union
 from .graph import Graph
-from copy import deepcopy
+import copy
+import sys
+import traceback
+import math
 
 # normal exec loses the source code, however we can patch
 # the linecache module to still recover it.
@@ -28,9 +31,7 @@ def patched_getline(*args, **kwargs):
 linecache.getlines = patched_getline
 
 def _forward_from_src(src : str):
-    gbls: Dict[str, Any] = {
-        'torch': torch
-    }
+    gbls: Dict[str, Any] = {'inf': math.inf, 'nan': math.nan}
     exec_with_source(src, gbls)
     return gbls['forward']
 
@@ -56,10 +57,11 @@ def deserialize_graphmodule(body : dict) -> torch.nn.Module:
     # we shouldn't trace into any of the submodules, they were not
     # because they were not traced in the original GraphModule
     class KeepModules(Tracer):
-        def is_leaf_module(self, _: torch.nn.Module) -> bool:
+        def is_leaf_module(self, _: torch.nn.Module, __: str) -> bool:
             return True
 
-    return KeepModules().trace(CodeOnlyModule(body))
+    com = CodeOnlyModule(body)
+    return GraphModule(com, KeepModules().trace(com))
 
 # copy an attribute value with qualified name 'target' from 'from_module' to 'to_module'
 # This installs empty Modules where none exist yet if they are subpaths of target
@@ -80,7 +82,14 @@ def _copy_attr(from_module: torch.nn.Module, to_module: torch.nn.Module, target:
             setattr(to_module, item, t)
         from_module, to_module = f, t
 
-    setattr(to_module, field, getattr(from_module, field))
+    orig = getattr(from_module, field)
+    # If it is a tensor and not a parameter attribute of a module, it should be a named buffer.
+    # So, we register it as a named buffer in the target module.
+    if isinstance(orig, torch.Tensor) and not isinstance(orig, torch.nn.Parameter):
+        to_module.register_buffer(field, orig)
+    else:
+        setattr(to_module, field, orig)
+
 
 # Assign attribute 'from_obj' to the qualified name 'target' on 'to_module
 # This installs empty Modules where none exist yet if they are subpaths of target
@@ -97,6 +106,19 @@ def _assign_attr(from_obj: Any, to_module: torch.nn.Module, target: str):
     setattr(to_module, field, from_obj)
 
 class GraphModule(torch.nn.Module):
+    """
+    GraphModule is an nn.Module generated from an fx.Graph. GraphModule has
+    important attributes:
+
+        graph : The graph from which this GraphModule was generated
+        code : The Python source code for the function generated from `graph`
+        forward : The Python method generated from `graph`
+
+    Note that when `graph` is reassigned, `code` and `forward` will be automatically
+    regenerated. However, if you edit the contents of the `graph` without reassigning
+    the `graph` attribute itself, you must call `recompile()` to update the generated
+    code.
+    """
     def __new__(cls: 'Type[GraphModule]', *args, **kwargs):
         # each instance of a graph module needs its own forward method
         # so create a new singleton class for each instance.
@@ -124,13 +146,13 @@ class GraphModule(torch.nn.Module):
             if hasattr(root, 'training'):
                 self.training = root.training
             for node in graph.nodes:
-                if node.op in ['get_param', 'call_module']:
+                if node.op in ['get_attr', 'call_module']:
                     assert isinstance(node.target, str)
                     _copy_attr(root, self, node.target)
         elif isinstance(root, dict):
             targets_to_copy = []
             for node in graph.nodes:
-                if node.op in ['get_param', 'call_module']:
+                if node.op in ['get_attr', 'call_module']:
                     assert isinstance(node.target, str)
                     if node.target not in root:
                         raise RuntimeError('Node ' + str(node) + ' referenced target ' + node.target +
@@ -148,32 +170,76 @@ class GraphModule(torch.nn.Module):
         else:
             raise RuntimeError('Unsupported type ' + str(root) + ' passed for root!')
         self.graph = graph
-        self._generate_forward()
 
-    def _generate_forward(self) -> None:
-        body, result, free_variables = self.graph.python_code(root_module='self')
-        body = '\n'.join('    ' + line for line in body.split('\n')) + '\n'
-        self.code = f"""\
-def forward(self, {', '.join(free_variables)}):
-{body}
-    return {result}
-"""
+    # TorchScript breaks trying to compile the graph setter because of the
+    # continued string literal. Issue here: https://github.com/pytorch/pytorch/issues/44842
+    #
+    # Shouldn't be an issue since these methods shouldn't be used in TorchScript anyway
+    __jit_unused_properties__ = ['graph']
+
+    @property
+    def graph(self):
+        """
+        Return the `Graph` underlying this `GraphModule`
+        """
+        return self._graph
+
+    @graph.setter
+    def graph(self, g) -> None:
+        """
+        Set the underlying `Graph` for this `GraphModule`. This will internally
+        recompile the `GraphModule` so that the generated `forward()` function
+        corresponds to `g`
+        """
+        self._graph = g
+        self.recompile()
+
+    def recompile(self) -> None:
+        """
+        Recompile this GraphModule from its `graph` attribute. This should be
+        called after editing the contained `graph`, otherwise the generated
+        code of this `GraphModule` will be out of date.
+        """
+        self.code = self._graph.python_code(root_module='self')
         cls = type(self)
         cls.forward = _forward_from_src(self.code)
 
+        cls_call = cls.__call__
+
+        def print_full_traceback(exctype, value, tb):
+            traceback.print_exception(exctype, value, tb)
+
+        def wrapped_call(self, *args, **kwargs):
+            old_excepthook = sys.excepthook
+            try:
+                sys.excepthook = print_full_traceback
+                return cls_call(self, *args, **kwargs)
+            finally:
+                sys.excepthook = old_excepthook
+        cls.__call__ = wrapped_call
+
     def __reduce__(self):
+        """
+        Serialization of GraphModule. We serialize only the generated code, not
+        the underlying `Graph`. This is because `Graph` does not have on-disk
+        backward-compatibility guarantees, whereas Python source code does.
+        On the deserialization side, we symbolically trace through the generated
+        code to regenerate the underlying `Graph`
+        """
         dict_without_graph = self.__dict__.copy()
-        del dict_without_graph['graph']
+        del dict_without_graph['_graph']
         return (deserialize_graphmodule, (dict_without_graph,))
 
     # because __reduce__ is defined for serialization,
     # we need to define deepcopy otherwise it will call __reduce__
     # and cause symbolic tracing to occur every time we try to copy the object
     def __deepcopy__(self, memo):
-        the_copy = self.__new__(type(self))
-        the_copy.__dict__ = deepcopy(self.__dict__, memo)
-        return the_copy
+        fake_mod = torch.nn.Module()
+        fake_mod.__dict__ = copy.deepcopy(self.__dict__)
+        return GraphModule(fake_mod, self.graph)
 
+    def __copy__(self):
+        return GraphModule(self, self.graph)
 
     def __str__(self) -> str:
         orig_str = super().__str__()
